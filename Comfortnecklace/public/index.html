@@ -1,0 +1,84 @@
+<head>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+</head>
+
+<div class="container" style="border-top: 10px solid #A34340;">
+    <div class="page-header">
+      <h1>FoodTracklace <small>Automated Detection of Eating Episodes</small></h1>
+    </div>
+
+    <div class="alert alert-info" role="alert">
+        <h2 id="label" class="text-center"></h2>
+    </div>
+
+    <div class="panel panel-default">
+      <div class="panel-body">
+        <div id="tester" style="width:90%;height:70%;"></div>
+      </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    window.onload = function() {
+        TESTER = document.getElementById('tester');
+
+        var N = 1000
+
+        var count = 0
+
+        var startTime = Date.now()
+
+        signals = {
+            time: [],
+            top:  [],
+            bottom: [],
+            divide: []
+        };
+
+        var layout = {
+            yaxis: {range:[0, 300]}
+        }
+
+        var socket = io();
+
+        socket.on('data', function (msg) {
+            console.log(msg.label);
+            if(msg.label === "[0]"){
+              document.getElementById("label").innerHTML = "Resting"
+            }else if(msg.label === "[1]"){
+              document.getElementById("label").innerHTML = "You are eating!"
+            }else{
+              document.getElementById("label").innerHTML = "Error"
+            }
+            if (signals.time.length > N) {
+                signals.time.shift();
+                signals.top.shift();
+                signals.bottom.shift();
+                signals.divide.shift();
+            }
+
+            signals.time.push((msg.time - startTime)/1000)
+            signals.top.push(msg.top/5)
+            signals.bottom.push(msg.bottom)
+            signals.divide.push(msg.top/msg.bottom)
+
+            count = count + 1
+
+            if (count > 100) {
+                count = 0;
+                var tr1 = {  x: signals.time,
+                                y: signals.top,
+                                name: 'Horizontal proximity'}
+
+                var tr2 = {  x: signals.time,
+                                y: signals.bottom,
+                                name: 'Vertical proximity'}
+
+                Plotly.newPlot( TESTER, [tr1, tr2], layout);
+            }
+        });
+    }
+
+</script>

@@ -1,0 +1,118 @@
+<head>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r79/three.js"></script>
+</head>
+
+<p>
+    Necklace sensor
+</p>
+
+<div id="tester" style="width:90%;height:70%;"></div>
+
+
+<script type="text/javascript">
+    window.onload = function() {
+        TESTER = document.getElementById('tester');
+
+        var N = 1000
+
+        var count = 0
+
+        var startTime = Date.now()
+
+        signals = {
+            time: [],
+            accX: [],
+            accY: [],
+            accZ: [],
+            qW: [],
+            qX: [],
+            qY: [],
+            qZ: [],
+            leanForward: [],
+        };
+
+        var layout = {
+            yaxis: {range:[-5, 5]}
+        }
+
+        var socket = io();
+
+        socket.on('data', function (msg) {
+            if (signals.time.length > N) {
+                signals.time.shift();
+                
+                signals.accX.shift();
+                signals.accY.shift();
+                signals.accZ.shift();
+
+                signals.qW.shift();
+                signals.qX.shift();
+                signals.qY.shift();
+                signals.qZ.shift();
+                signals.leanForward.shift();
+            }
+
+            signals.time.push((msg.time - startTime)/1000)
+
+            signals.accX.push(msg.accX);
+            signals.accY.push(msg.accY);
+            signals.accZ.push(msg.accZ);
+
+            signals.qW.push(msg.qW);
+            signals.qX.push(msg.qX);
+            signals.qY.push(msg.qY);
+            signals.qZ.push(msg.qZ);
+
+            // lean forward calculation
+            var quat = new THREE.Quaternion();
+            quat.set(msg.qX, msg.qY, msg.qZ, msg.qW); // THREE.js notation: cos a go last
+            var zaxis = new THREE.Vector3(0,0,1);
+            var zaxisRotated = new THREE.Vector3(0,0,1);
+            zaxisRotated.applyQuaternion(quat)
+            angle = zaxis.angleTo(zaxisRotated)*180/Math.PI;
+
+            signals.leanForward.push(angle/90*5); // since max y is 5
+	    socket.emit('leanForward',angle/90*5);
+        console.log(angle/90*5);
+
+            count = count + 1
+
+            if (count > 100) {
+                count = 0;
+
+                var tr4 = {     x: signals.time,
+                                y: signals.accX,
+                                name: 'AccX'}
+
+                var tr5 = {     x: signals.time,
+                                y: signals.accY,
+                                name: 'AccY'}
+
+                var tr6 = {     x: signals.time,
+                                y: signals.accZ,
+                                name: 'AccZ'}
+
+                var tr7 = {     x: signals.time,
+                                y: signals.qX,
+                                name: 'qX'}
+
+                var tr8 = {     x: signals.time,
+                                y: signals.qY,
+                                name: 'qY'}
+
+                var tr9 = {     x: signals.time,
+                                y: signals.qZ,
+                                name: 'qZ'}
+
+                var tr10 = {    x: signals.time,
+                                y: signals.leanForward,
+                                name: 'leanForward'}
+
+                Plotly.newPlot( TESTER, [tr4, tr5, tr6, tr7, tr8, tr9, tr10], layout);
+            }
+        });
+    }
+
+</script>
